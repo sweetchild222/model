@@ -16,48 +16,25 @@ import io
 import time
 
 
-path_to_zip = tf.keras.utils.get_file(
-    'spa-eng.zip', origin='http://storage.googleapis.com/download.tensorflow.org/data/spa-eng.zip',
-    extract=True)
-
-path_to_file = "english_spain.txt"
-
-
 def unicode_to_ascii(s):
-  return ''.join(c for c in unicodedata.normalize('NFD', s)
-      if unicodedata.category(c) != 'Mn')
+
+  return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
 
 
 def preprocess_sentence(w):
+
   w = unicode_to_ascii(w.lower().strip())
 
-  # 단어와 단어 뒤에 오는 구두점(.)사이에 공백을 생성합니다.
-  # 예시: "he is a boy." => "he is a boy ."
-  # 참고:- https://stackoverflow.com/questions/3645931/python-padding-punctuation-with-white-spaces-keeping-punctuation
   w = re.sub(r"([?.!,¿])", r" \1 ", w)
   w = re.sub(r'[" "]+', " ", w)
-
-  # (a-z, A-Z, ".", "?", "!", ",")을 제외한 모든 것을 공백으로 대체합니다.
   w = re.sub(r"[^a-zA-Z?.!,¿]+", " ", w)
+  w = w.strip()  
 
-  w = w.strip()
-
-  # 모델이 예측을 시작하거나 중단할 때를 알게 하기 위해서
-  # 문장에 start와 end 토큰을 추가합니다.
-  w = '<start> ' + w + ' <end>'
-  return w
-
-
-
-
-en_sentence = u"May I borrow this book?"
-sp_sentence = u"¿Puedo tomar prestado este libro?"
-print(preprocess_sentence(en_sentence))
-print(preprocess_sentence(sp_sentence).encode('utf-8'))
-
+  return '<start> ' + w + ' <end>'
 
 
 def create_dataset(path, num_examples):
+
   lines = io.open(path, encoding='UTF-8').read().strip().split('\n')
 
   word_pairs = [[preprocess_sentence(w) for w in l.split('\t')]  for l in lines[:num_examples]]
@@ -65,32 +42,18 @@ def create_dataset(path, num_examples):
   return zip(*word_pairs)
 
 
-
-en, sp = create_dataset(path_to_file, None)
-print(en[-1])
-print(sp[-1])
-
-
-
-
-
 def tokenize(lang):
-  lang_tokenizer = tf.keras.preprocessing.text.Tokenizer(
-      filters='')
+
+  lang_tokenizer = tf.keras.preprocessing.text.Tokenizer(filters='')
   lang_tokenizer.fit_on_texts(lang)
 
   tensor = lang_tokenizer.texts_to_sequences(lang)
-
-  tensor = tf.keras.preprocessing.sequence.pad_sequences(tensor,
-                                                         padding='post')
+  tensor = tf.keras.preprocessing.sequence.pad_sequences(tensor, padding='post')
 
   return tensor, lang_tokenizer
 
 
-
-
-
-def load_dataset(path, num_examples=None):
+def load_dataset(path, num_examples):
 
   targ_lang, inp_lang = create_dataset(path, num_examples)
 
@@ -100,37 +63,22 @@ def load_dataset(path, num_examples=None):
   return input_tensor, target_tensor, inp_lang_tokenizer, targ_lang_tokenizer
 
 
-
-num_examples = 30000
-input_tensor, target_tensor, inp_lang, targ_lang = load_dataset(path_to_file, num_examples)
-
-print(target_tensor[0])
-
-
-max_length_targ, max_length_inp = target_tensor.shape[1], input_tensor.shape[1]
-
-
-input_tensor_train, input_tensor_val, target_tensor_train, target_tensor_val = train_test_split(input_tensor, target_tensor, test_size=0.2)
-
-
-print(len(input_tensor_train), len(target_tensor_train), len(input_tensor_val), len(target_tensor_val))
-
-
 def convert(lang, tensor):
   for t in tensor:
     if t!=0:
       print ("%d ----> %s" % (t, lang.index_word[t]))
 
 
+file_path = "english_spain.txt"
+num_examples = 30000
+input_tensor, target_tensor, inp_lang, targ_lang = load_dataset(file_path, num_examples)
+max_length_targ, max_length_inp = target_tensor.shape[1], input_tensor.shape[1]
 
+input_tensor_train, input_tensor_val, target_tensor_train, target_tensor_val = train_test_split(input_tensor, target_tensor, test_size=0.2)
+print(len(input_tensor_train), len(target_tensor_train), len(input_tensor_val), len(target_tensor_val))
 
-print ("Input Language; index to word mapping")
 convert(inp_lang, input_tensor_train[0])
-print ()
-print ("Target Language; index to word mapping")
 convert(targ_lang, target_tensor_train[0])
-
-
 
 BUFFER_SIZE = len(input_tensor_train)
 BATCH_SIZE = 64
@@ -144,11 +92,8 @@ dataset = tf.data.Dataset.from_tensor_slices((input_tensor_train, target_tensor_
 dataset = dataset.batch(BATCH_SIZE, drop_remainder=True)
 
 
-
-
 example_input_batch, example_target_batch = next(iter(dataset))
 example_input_batch.shape, example_target_batch.shape
-
 
 
 encoder = Encoder(vocab_inp_size, embedding_dim, units, BATCH_SIZE)
@@ -160,47 +105,38 @@ print ('Encoder output shape: (batch size, sequence length, units) {}'.format(sa
 print ('Encoder Hidden state shape: (batch size, units) {}'.format(sample_hidden.shape))
 
 
-attention_layer = BahdanauAttention(10)
+attention_layer = BahdanauAttention(units)
 attention_result, attention_weights = attention_layer(sample_hidden, sample_output)
 
 print("Attention result shape: (batch size, units) {}".format(attention_result.shape))
 print("Attention weights shape: (batch_size, sequence_length, 1) {}".format(attention_weights.shape))
 
-decoder = Decoder(vocab_tar_size, embedding_dim, units, BATCH_SIZE, BahdanauAttention(units))
+decoder = Decoder(vocab_tar_size, embedding_dim, units, BATCH_SIZE, attention_layer)
 
 sample_decoder_output, _, _ = decoder(tf.random.uniform((BATCH_SIZE, 1)), sample_hidden, sample_output)
 print ('Decoder output shape: (batch_size, vocab size) {}'.format(sample_decoder_output.shape))
 
 optimizer = tf.keras.optimizers.Adam()
-loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
-    from_logits=True, reduction='none')
+
+loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
 
 def loss_function(real, pred):
+
   mask = tf.math.logical_not(tf.math.equal(real, 0))
   loss_ = loss_object(real, pred)
-
   mask = tf.cast(mask, dtype=loss_.dtype)
   loss_ *= mask
 
   return tf.reduce_mean(loss_)
 
 
-
-checkpoint_dir = './training_checkpoints'
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
-checkpoint = tf.train.Checkpoint(optimizer=optimizer,
-                                 encoder=encoder,
-                                 decoder=decoder)
-
-
-
-
-
 @tf.function
 def train_step(inp, targ, enc_hidden):
+
   loss = 0
 
   with tf.GradientTape() as tape:
+
     enc_output, enc_hidden = encoder(inp, enc_hidden)
 
     dec_hidden = enc_hidden
@@ -228,8 +164,7 @@ def train_step(inp, targ, enc_hidden):
   return batch_loss
 
 
-
-EPOCHS = 1
+EPOCHS = 10
 
 for epoch in range(EPOCHS):
   start = time.time()
@@ -242,30 +177,20 @@ for epoch in range(EPOCHS):
     total_loss += batch_loss
 
     if batch % 100 == 0:
-      print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1,
-                                                   batch,
-                                                   batch_loss.numpy()))
-
-  if (epoch + 1) % 2 == 0:
-    checkpoint.save(file_prefix = checkpoint_prefix)
-
-  print('Epoch {} Loss {:.4f}'.format(epoch + 1,
-                                      total_loss / steps_per_epoch))
+      print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1, batch, batch_loss.numpy()))
+  
+  print('Epoch {} Loss {:.4f}'.format(epoch + 1, total_loss / steps_per_epoch))
   print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
 
 
-
-
-
 def evaluate(sentence):
+
   attention_plot = np.zeros((max_length_targ, max_length_inp))
 
   sentence = preprocess_sentence(sentence)
 
   inputs = [inp_lang.word_index[i] for i in sentence.split(' ')]
-  inputs = tf.keras.preprocessing.sequence.pad_sequences([inputs],
-                                                         maxlen=max_length_inp,
-                                                         padding='post')
+  inputs = tf.keras.preprocessing.sequence.pad_sequences([inputs], maxlen=max_length_inp, padding='post')
   inputs = tf.convert_to_tensor(inputs)
 
   result = ''
@@ -313,8 +238,6 @@ def plot_attention(attention, sentence, predicted_sentence):
   plt.show()
 
 
-
-
 def translate(sentence):
   result, sentence, attention_plot = evaluate(sentence)
 
@@ -324,8 +247,6 @@ def translate(sentence):
   attention_plot = attention_plot[:len(result.split(' ')), :len(sentence.split(' '))]
   plot_attention(attention_plot, sentence.split(' '), result.split(' '))
 
-
-checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
 
 translate(u'hace mucho frio aqui.')
 translate(u'esta es mi vida.')
