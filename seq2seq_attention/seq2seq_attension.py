@@ -10,8 +10,6 @@ from bahdanau_attention import BahdanauAttention
 
 import unicodedata
 import re
-import numpy as np
-import os
 import io
 import time
 
@@ -98,7 +96,6 @@ example_input_batch.shape, example_target_batch.shape
 
 encoder = Encoder(vocab_inp_size, embedding_dim, units, BATCH_SIZE)
 
-
 sample_hidden = encoder.initialize_hidden_state()
 sample_output, sample_hidden = encoder(example_input_batch, sample_hidden)
 print ('Encoder output shape: (batch size, sequence length, units) {}'.format(sample_output.shape))
@@ -114,7 +111,7 @@ print("Attention weights shape: (batch_size, sequence_length, 1) {}".format(atte
 decoder = Decoder(vocab_tar_size, embedding_dim, units, BATCH_SIZE, attention_layer)
 
 sample_decoder_output, _, _ = decoder(tf.random.uniform((BATCH_SIZE, 1)), sample_hidden, sample_output)
-print ('Decoder output shape: (batch_size, vocab size) {}'.format(sample_decoder_output.shape))
+print('Decoder output shape: (batch_size, vocab size) {}'.format(sample_decoder_output.shape))
 
 optimizer = tf.keras.optimizers.Adam()
 
@@ -142,15 +139,13 @@ def train_step(inp, targ, enc_hidden):
     dec_hidden = enc_hidden
 
     dec_input = tf.expand_dims([targ_lang.word_index['<start>']] * BATCH_SIZE, 1)
-
-    # 교사 강요(teacher forcing) - 다음 입력으로 타겟을 피딩(feeding)합니다.
+    
     for t in range(1, targ.shape[1]):
-      # enc_output를 디코더에 전달합니다.
+      
       predictions, dec_hidden, _ = decoder(dec_input, dec_hidden, enc_output)
 
       loss += loss_function(targ[:, t], predictions)
-
-      # 교사 강요(teacher forcing)를 사용합니다.
+      
       dec_input = tf.expand_dims(targ[:, t], 1)
 
   batch_loss = (loss / int(targ.shape[1]))
@@ -164,32 +159,33 @@ def train_step(inp, targ, enc_hidden):
   return batch_loss
 
 
-EPOCHS = 10
+def train():
 
-for epoch in range(EPOCHS):
-  start = time.time()
+  epoch_count = 10
 
-  enc_hidden = encoder.initialize_hidden_state()
-  total_loss = 0
+  for epoch in range(epoch_count):
+    start = time.time()
 
-  for (batch, (inp, targ)) in enumerate(dataset.take(steps_per_epoch)):
-    batch_loss = train_step(inp, targ, enc_hidden)
-    total_loss += batch_loss
+    enc_hidden = encoder.initialize_hidden_state()
+    total_loss = 0
 
-    if batch % 100 == 0:
-      print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1, batch, batch_loss.numpy()))
+    for (batch, (inp, targ)) in enumerate(dataset.take(steps_per_epoch)):
+
+      batch_loss = train_step(inp, targ, enc_hidden)
+      total_loss += batch_loss
+
+      if batch % 100 == 0:
+        print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1, batch, batch_loss.numpy()))
   
-  print('Epoch {} Loss {:.4f}'.format(epoch + 1, total_loss / steps_per_epoch))
-  print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
+    print('Epoch {} Loss {:.4f}'.format(epoch + 1, total_loss / steps_per_epoch))
+    print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
 
 
-def evaluate(sentence):
-
-  attention_plot = np.zeros((max_length_targ, max_length_inp))
-
+def test(sentence):
+  
   sentence = preprocess_sentence(sentence)
 
-  inputs = [inp_lang.word_index[i] for i in sentence.split(' ')]
+  inputs = [inp_lang.word_index[i] for i in sentence.split(' ')]  
   inputs = tf.keras.preprocessing.sequence.pad_sequences([inputs], maxlen=max_length_inp, padding='post')
   inputs = tf.convert_to_tensor(inputs)
 
@@ -202,51 +198,31 @@ def evaluate(sentence):
   dec_input = tf.expand_dims([targ_lang.word_index['<start>']], 0)
 
   for t in range(max_length_targ):
-    predictions, dec_hidden, attention_weights = decoder(dec_input,
-                                                         dec_hidden,
-                                                         enc_out)
+    predictions, dec_hidden, attention_weights = decoder(dec_input, dec_hidden, enc_out)
 
     attention_weights = tf.reshape(attention_weights, (-1, ))
-    attention_plot[t] = attention_weights.numpy()
 
     predicted_id = tf.argmax(predictions[0]).numpy()
 
     result += targ_lang.index_word[predicted_id] + ' '
 
     if targ_lang.index_word[predicted_id] == '<end>':
-      return result, sentence, attention_plot
-
+      return result, sentence
 
     dec_input = tf.expand_dims([predicted_id], 0)
 
-  return result, sentence, attention_plot
-
-
-def plot_attention(attention, sentence, predicted_sentence):
-  fig = plt.figure(figsize=(10,10))
-  ax = fig.add_subplot(1, 1, 1)
-  ax.matshow(attention, cmap='viridis')
-
-  fontdict = {'fontsize': 14}
-
-  ax.set_xticklabels([''] + sentence, fontdict=fontdict, rotation=90)
-  ax.set_yticklabels([''] + predicted_sentence, fontdict=fontdict)
-
-  ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
-  ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
-
-  plt.show()
+  return result, sentence
 
 
 def translate(sentence):
-  result, sentence, attention_plot = evaluate(sentence)
+
+  result, sentence = test(sentence)
 
   print('Input: %s' % (sentence))
   print('Predicted translation: {}'.format(result))
 
-  attention_plot = attention_plot[:len(result.split(' ')), :len(sentence.split(' '))]
-  plot_attention(attention_plot, sentence.split(' '), result.split(' '))
 
+train()
 
 translate(u'hace mucho frio aqui.')
 translate(u'esta es mi vida.')
