@@ -22,6 +22,3 @@ class Encoder(tf.keras.Model):
   def initialize_hidden_state(self):
 
     return tf.zeros((self.batch_size, self.units))
-
-
-

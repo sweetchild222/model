@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 class Decoder(tf.keras.Model):
-  
+
   def __init__(self, vocab_size, embedding_dim, units, batch_size, attention):
     super(Decoder, self).__init__()
 
@@ -26,5 +26,4 @@ class Decoder(tf.keras.Model):
     x = self.fc(output)
 
     return x, state, attention_weights
-
 

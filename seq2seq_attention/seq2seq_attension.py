@@ -6,7 +6,9 @@ import tensorflow as tf
 
 from encoder import Encoder
 from decoder import Decoder
-from bahdanau_attention import BahdanauAttention
+from attention.luong import Luong
+from attention.luong2 import Luong2
+from attention.bahdanau import Bahdanau
 import time
 
 
@@ -52,7 +54,9 @@ dataset = dataset.batch(batch_size, drop_remainder=True)
 vocab_inp_size = len(inp_lang.word_index) + 1
 encoder = Encoder(vocab_inp_size, embedding_dim, units, batch_size)
 
-attention_layer = BahdanauAttention(units)
+#attention_layer = Bahdanau(units)
+#attention_layer = Luong()
+attention_layer = Luong2(units)
 
 vocab_tar_size = len(targ_lang.word_index) + 1
 decoder = Decoder(vocab_tar_size, embedding_dim, units, batch_size, attention_layer)
@@ -108,12 +112,12 @@ def train_step(inp, targ, enc_hidden):
       predictions, dec_hidden, _ = decoder(dec_input, dec_hidden, enc_output)
 
       loss += loss_function(loss_object, targ[:, t], predictions)
-      
+
       dec_input = tf.expand_dims(targ[:, t], 1)
 
   batch_loss = (loss / int(targ.shape[1]))
 
-  variables = encoder.trainable_variables + decoder.trainable_variables  
+  variables = encoder.trainable_variables + decoder.trainable_variables
 
   gradients = tape.gradient(loss, variables)
 
@@ -124,7 +128,7 @@ def train_step(inp, targ, enc_hidden):
 
 def train():
 
-  epoch_count = 3
+  epoch_count = 20
 
   for epoch in range(epoch_count):
     start = time.time()
@@ -139,7 +143,7 @@ def train():
 
       if batch % 100 == 0:
         print('Epoch {} Batch {} Loss {:.4f}'.format(epoch + 1, batch, batch_loss.numpy()))
-  
+
     print('Epoch {} Loss {:.4f}'.format(epoch + 1, total_loss / steps_per_epoch))
     print('Time taken for 1 epoch {} sec\n'.format(time.time() - start))
 
