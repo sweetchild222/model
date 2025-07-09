@@ -1,5 +1,6 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 from loader import *
 import tensorflow as tf
 
@@ -8,9 +9,6 @@ from decoder import Decoder
 from bahdanau_attention import BahdanauAttention
 import time
 
-
-head = '<start>'
-tail = '<end>'
 
 def tokenize(lang):
 
@@ -23,7 +21,7 @@ def tokenize(lang):
   return tensor, lang_tokenizer
 
 
-def load_dataset(path, num_examples):
+def load_dataset(path, num_examples, head, tail):
 
   targ_lang, inp_lang = create_dataset(path, num_examples, head, tail)
 
@@ -35,53 +33,52 @@ def load_dataset(path, num_examples):
 
 file_path = "english_spain.txt"
 num_examples = 30000
+head = '<start>'
+tail = '<end>'
 
-input_tensor, target_tensor, inp_lang, targ_lang = load_dataset(file_path, num_examples)
+input_tensor, target_tensor, inp_lang, targ_lang = load_dataset(file_path, num_examples, head, tail)
 
-print(input_tensor.shape)
-print(target_tensor.shape)
-max_length_targ, max_length_inp = target_tensor.shape[1], input_tensor.shape[1]
-
+max_length_inp = input_tensor.shape[1]
+max_length_targ = target_tensor.shape[1]
 
 batch_size = 64
 steps_per_epoch = len(input_tensor) // batch_size
 embedding_dim = 256
 units = 1024
 
-
 dataset = tf.data.Dataset.from_tensor_slices((input_tensor, target_tensor)).shuffle(len(input_tensor))
 dataset = dataset.batch(batch_size, drop_remainder=True)
-
-example_input_batch, example_target_batch = next(iter(dataset))
-example_input_batch.shape, example_target_batch.shape
 
 vocab_inp_size = len(inp_lang.word_index) + 1
 encoder = Encoder(vocab_inp_size, embedding_dim, units, batch_size)
 
-sample_hidden = encoder.initialize_hidden_state()
-sample_output, sample_hidden = encoder(example_input_batch, sample_hidden)
-print ('Encoder output shape: (batch size, sequence length, units) {}'.format(sample_output.shape))
-print ('Encoder Hidden state shape: (batch size, units) {}'.format(sample_hidden.shape))
-
-
 attention_layer = BahdanauAttention(units)
-attention_result, attention_weights = attention_layer(sample_hidden, sample_output)
-
-print("Attention result shape: (batch size, units) {}".format(attention_result.shape))
-print("Attention weights shape: (batch_size, sequence_length, 1) {}".format(attention_weights.shape))
 
 vocab_tar_size = len(targ_lang.word_index) + 1
 decoder = Decoder(vocab_tar_size, embedding_dim, units, batch_size, attention_layer)
 
-sample_decoder_output, _, _ = decoder(tf.random.uniform((batch_size, 1)), sample_hidden, sample_output)
-print('Decoder output shape: (batch_size, vocab size) {}'.format(sample_decoder_output.shape))
-
-
 optimizer = tf.keras.optimizers.Adam()
-loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+
+def model_tensor_shape():
+
+  example_input_batch, example_target_batch = next(iter(dataset))
+  example_input_batch.shape, example_target_batch.shape
+
+  sample_hidden = encoder.initialize_hidden_state()
+  sample_output, sample_hidden = encoder(example_input_batch, sample_hidden)
+  print ('Encoder output shape: (batch size, sequence length, units) {}'.format(sample_output.shape))
+  print ('Encoder Hidden state shape: (batch size, units) {}'.format(sample_hidden.shape))
+
+  attention_result, attention_weights = attention_layer(sample_hidden, sample_output)
+
+  print("Attention result shape: (batch size, units) {}".format(attention_result.shape))
+  print("Attention weights shape: (batch_size, sequence_length, 1) {}".format(attention_weights.shape))
+
+  sample_decoder_output, _, _ = decoder(tf.random.uniform((batch_size, 1)), sample_hidden, sample_output)
+  print('Decoder output shape: (batch_size, vocab size) {}'.format(sample_decoder_output.shape))
 
 
-def loss_function(real, pred):
+def loss_function(loss_object, real, pred):
 
   mask = tf.math.logical_not(tf.math.equal(real, 0))
   loss_ = loss_object(real, pred)
@@ -96,6 +93,8 @@ def train_step(inp, targ, enc_hidden):
 
   loss = 0
 
+  loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction='none')
+
   with tf.GradientTape() as tape:
 
     enc_output, enc_hidden = encoder(inp, enc_hidden)
@@ -108,13 +107,13 @@ def train_step(inp, targ, enc_hidden):
       
       predictions, dec_hidden, _ = decoder(dec_input, dec_hidden, enc_output)
 
-      loss += loss_function(targ[:, t], predictions)
+      loss += loss_function(loss_object, targ[:, t], predictions)
       
       dec_input = tf.expand_dims(targ[:, t], 1)
 
   batch_loss = (loss / int(targ.shape[1]))
 
-  variables = encoder.trainable_variables + decoder.trainable_variables
+  variables = encoder.trainable_variables + decoder.trainable_variables  
 
   gradients = tape.gradient(loss, variables)
 
@@ -125,7 +124,7 @@ def train_step(inp, targ, enc_hidden):
 
 def train():
 
-  epoch_count = 10
+  epoch_count = 3
 
   for epoch in range(epoch_count):
     start = time.time()
@@ -149,11 +148,11 @@ def test(sentence):
   
   sentence = preprocess_sentence(sentence, head, tail)
 
-  inputs = [inp_lang.word_index[i] for i in sentence.split(' ')]  
+  inputs = [inp_lang.word_index[i] for i in sentence.split(' ')]
   inputs = tf.keras.preprocessing.sequence.pad_sequences([inputs], maxlen=max_length_inp, padding='post')
   inputs = tf.convert_to_tensor(inputs)
 
-  result = ''
+  predict = ''
 
   hidden = [tf.zeros((1, units))]
   enc_out, enc_hidden = encoder(inputs, hidden)
@@ -162,30 +161,32 @@ def test(sentence):
   dec_input = tf.expand_dims([targ_lang.word_index[head]], 0)
 
   for t in range(max_length_targ):
+
     predictions, dec_hidden, attention_weights = decoder(dec_input, dec_hidden, enc_out)
 
     attention_weights = tf.reshape(attention_weights, (-1, ))
 
     predicted_id = tf.argmax(predictions[0]).numpy()
 
-    result += targ_lang.index_word[predicted_id] + ' '
+    predict += targ_lang.index_word[predicted_id] + ' '
 
     if targ_lang.index_word[predicted_id] == tail:
-      return result, sentence
+      return predict, sentence
 
     dec_input = tf.expand_dims([predicted_id], 0)
 
-  return result, sentence
+  return predict, sentence
 
 
 def translate(sentence):
 
-  result, sentence = test(sentence)
+  predict, sentence = test(sentence)
 
   print('Input: %s' % (sentence))
-  print('Predicted translation: {}'.format(result))
+  print('Predict: {}'.format(predict))
 
 
+model_tensor_shape()
 train()
 
 translate(u'hace mucho frio aqui.')
