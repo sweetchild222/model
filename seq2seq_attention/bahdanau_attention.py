@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 class BahdanauAttention(tf.keras.layers.Layer):
 
   def __init__(self, units):

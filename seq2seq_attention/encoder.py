@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 class Encoder(tf.keras.Model):
 
   def __init__(self, vocab_size, embedding_dim, units, batch_size):
@@ -19,7 +20,7 @@ class Encoder(tf.keras.Model):
     return output, state
 
   def initialize_hidden_state(self):
-    
+
     return tf.zeros((self.batch_size, self.units))
 
 
