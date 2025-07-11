@@ -128,7 +128,7 @@ def train_step(inp, targ, enc_hidden):
 
 def train():
 
-  epoch_count = 20
+  epoch_count = 10
 
   for epoch in range(epoch_count):
     start = time.time()
