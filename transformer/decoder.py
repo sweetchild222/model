@@ -32,16 +32,12 @@ def decoder_layer(dff, d_model, num_heads, dropout, name="decoder_layer"):
     look_ahead_mask = tf.keras.Input(shape=(1, None, None), name="look_ahead_mask")
     padding_mask = tf.keras.Input(shape=(1, 1, None), name='padding_mask')
   
-    attention1 = MultiHeadAttention(d_model, num_heads, name="attention_1")(inputs={'query': inputs, 'key': inputs, 'value': inputs, 'mask': look_ahead_mask})
+    attention1 = MultiHeadAttention(d_model, num_heads, name="attention_1")(inputs={'query': inputs, 'key': inputs, 'value': inputs, 'mask': look_ahead_mask})    
+    attention1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attention1 + inputs) # Residual Connection
 
-    # Residual Connection + Normalization
-    attention1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attention1 + inputs)
-
-    attention2 = MultiHeadAttention(d_model, num_heads, name="attention_2")(inputs={'query': attention1, 'key': enc_outputs, 'value': enc_outputs, 'mask': padding_mask})
-
-    # Dropout + Residual Connection, Normalization
+    attention2 = MultiHeadAttention(d_model, num_heads, name="attention_2")(inputs={'query': attention1, 'key': enc_outputs, 'value': enc_outputs, 'mask': padding_mask})    
     attention2 = tf.keras.layers.Dropout(rate=dropout)(attention2)
-    attention2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attention2 + attention1)
+    attention2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attention2 + attention1) # Residual Connection
 
     # Position-wise FFNN
     outputs = tf.keras.layers.Dense(units=dff, activation='relu')(attention2)
