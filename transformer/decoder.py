@@ -8,7 +8,6 @@ def decoder(vocab_size, num_layers, dff, d_model, num_heads, dropout, name='deco
     inputs = tf.keras.Input(shape=(None,), name='inputs')
     enc_outputs = tf.keras.Input(shape=(None, d_model), name='encoder_outputs')
 
-  
     look_ahead_mask = tf.keras.Input(shape=(1, None, None), name='look_ahead_mask')
     padding_mask = tf.keras.Input(shape=(1, 1, None), name='padding_mask')
   
@@ -25,7 +24,6 @@ def decoder(vocab_size, num_layers, dff, d_model, num_heads, dropout, name='deco
     return tf.keras.Model(inputs=[inputs, enc_outputs, look_ahead_mask, padding_mask], outputs=outputs, name=name)
 
 
-
 def decoder_layer(dff, d_model, num_heads, dropout, name="decoder_layer"):
   
     inputs = tf.keras.Input(shape=(None, d_model), name="inputs")
@@ -38,7 +36,7 @@ def decoder_layer(dff, d_model, num_heads, dropout, name="decoder_layer"):
 
     #Residual Connection + Normalization
     attention1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attention1 + inputs)
-    
+
     attention2 = MultiHeadAttention(d_model, num_heads, name="attention_2")(inputs={'query': attention1, 'key': enc_outputs, 'value': enc_outputs, 'mask': padding_mask})
 
     # Dropout + Residual Connection

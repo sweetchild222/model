@@ -34,52 +34,53 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
       batch_size = tf.shape(query)[0]
 
-    # q: (batch_size, query sequence, d_model)
-    # k: (batch_size, key sequence, d_model)
-    # v: (batch_size, value sequence, d_model)
-    query = self.query_dense(query)
-    key = self.key_dense(key) 
-    value = self.value_dense(value)
+      # q: (batch_size, query sequence, d_model)
+      # k: (batch_size, key sequence, d_model)
+      # v: (batch_size, value sequence, d_model)
+      query = self.query_dense(query)
+      key = self.key_dense(key) 
+      value = self.value_dense(value)
           
-    # q: (batch_size, num_heads, query sequence, d_model/num_heads)
-    # k: (batch_size, num_heads, key sequence, d_model/num_heads)
-    # v: (batch_size, num_heads, value sequence, d_model/num_heads)
-    query = self.split_heads(query, batch_size)
-    key = self.split_heads(key, batch_size)
-    value = self.split_heads(value, batch_size)
+      # q: (batch_size, num_heads, query sequence, d_model/num_heads)
+      # k: (batch_size, num_heads, key sequence, d_model/num_heads)
+      # v: (batch_size, num_heads, value sequence, d_model/num_heads)
+      query = self.split_heads(query, batch_size)
+      key = self.split_heads(key, batch_size)
+      value = self.split_heads(value, batch_size)
 
-    #(batch_size, num_heads, query sequence, d_model/num_heads)
-    scaled_attention, _ = scaled_dot_product_attention(query, key, value, mask)
+      #(batch_size, num_heads, query sequence, d_model/num_heads)
+      scaled_attention, _ = self.scaled_dot_product_attention(query, key, value, mask)
 
-    #(batch_size, query sequence, num_heads, d_model/num_heads)  
-    scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])
+      #(batch_size, query sequence, num_heads, d_model/num_heads)  
+      scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])
     
-    #(batch_size, query sequence, d_model)
-    concat_attention = tf.reshape(scaled_attention, (batch_size, -1, self.d_model))
+      #(batch_size, query sequence, d_model)
+      concat_attention = tf.reshape(scaled_attention, (batch_size, -1, self.d_model))
 
-    #(batch_size, query의 sequence, d_model)
-    return self.dense(concat_attention)    
+      #(batch_size, query의 sequence, d_model)
+      return self.dense(concat_attention)
+    
 
+    def scaled_dot_product_attention(self, query, key, value, mask):
 
-def scaled_dot_product_attention(query, key, value, mask):
+      #q: (batch_size, num_heads, query sequence, d_model/num_heads)
+      #k: (batch_size, num_heads, key sequence, d_model/num_heads)
+      #v: (batch_size, num_heads, value sequence, d_model/num_heads)
+      #padding_mask : (batch_size, 1, 1, key sequence)
 
-  #q: (batch_size, num_heads, query sequence, d_model/num_heads)
-  #k: (batch_size, num_heads, key sequence, d_model/num_heads)
-  #v: (batch_size, num_heads, value sequence, d_model/num_heads)
-  #padding_mask : (batch_size, 1, 1, key sequence)
+      matmul_qk = tf.matmul(query, key, transpose_b=True)
 
-  matmul_qk = tf.matmul(query, key, transpose_b=True)
+      depth = tf.cast(tf.shape(key)[-1], tf.float32)
+      logits = matmul_qk / tf.math.sqrt(depth)
 
-  depth = tf.cast(tf.shape(key)[-1], tf.float32)
-  logits = matmul_qk / tf.math.sqrt(depth)
-  
-  if mask is not None:
-    logits += (mask * -1e9)
-  
-  #(batch_size, num_heads, query sequence, key sequence)
-  attention_weights = tf.nn.softmax(logits, axis=-1)
+      if mask is not None:
+        logits += (mask * -1e9)
 
-  #(batch_size, num_heads, query sequence, d_model/num_heads)
-  output = tf.matmul(attention_weights, value)
+      #(batch_size, num_heads, query sequence, key sequence)
+      attention_weights = tf.nn.softmax(logits, axis=-1)
 
-  return output, attention_weights
+      #(batch_size, num_heads, query sequence, d_model/num_heads)
+      output = tf.matmul(attention_weights, value)
+
+      return output, attention_weights
+

@@ -18,17 +18,14 @@ class PositionalEncoding(tf.keras.layers.Layer):
 
   def positional_encoding(self, position, d_model):
 
-    angle_rads = self.get_angles(
-        position=tf.range(position, dtype=tf.float32)[:, tf.newaxis],
-        i=tf.range(d_model, dtype=tf.float32)[tf.newaxis, :],
-        d_model=d_model)
-    
-    sines = tf.math.sin(angle_rads[:, 0::2])
-    cosines = tf.math.cos(angle_rads[:, 1::2])
+    position=tf.range(position, dtype=tf.float32)[:, tf.newaxis]
+    i = tf.range(d_model, dtype=tf.float32)[tf.newaxis, :]
+
+    angle_rads = self.get_angles(position=position, i=i, d_model=d_model)
 
     angle_rads = np.zeros(angle_rads.shape)
-    angle_rads[:, 0::2] = sines
-    angle_rads[:, 1::2] = cosines
+    angle_rads[:, 0::2] = tf.math.sin(angle_rads[:, 0::2])
+    angle_rads[:, 1::2] = tf.math.cos(angle_rads[:, 1::2])
     pos_encoding = tf.constant(angle_rads)
     pos_encoding = pos_encoding[tf.newaxis, ...]
     
@@ -36,4 +33,5 @@ class PositionalEncoding(tf.keras.layers.Layer):
 
 
   def call(self, inputs):
+
     return inputs + self.pos_encoding[:, :tf.shape(inputs)[1], :]
