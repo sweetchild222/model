@@ -66,6 +66,15 @@ def max_length(sentences):
   return max_length
 
 
+def tokenize_and_padding(sentences, start_token, end_token):
+
+  # encode(토큰화 + 정수 인코딩), 시작 토큰과 종료 토큰 추가
+  tokenized = [start_token + tokenizer.encode(sentence) + end_token for sentence in sentences]  
+
+  return tf.keras.preprocessing.sequence.pad_sequences(tokenized, maxlen=max_length(tokenized), padding='post')
+
+
+
 questions, answers = load_dataset('data.csv')
 
 tokenizer = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(questions + answers, target_vocab_size=2**13)
@@ -77,15 +86,6 @@ print(tokenized_string, ' - ', original_string)
 start_token = [tokenizer.vocab_size]
 end_token = [tokenizer.vocab_size + 1]
 vocab_size = tokenizer.vocab_size + 2 #for adding start token and end token
-
-
-def tokenize_and_padding(sentences, start_token, end_token):
-
-  # encode(토큰화 + 정수 인코딩), 시작 토큰과 종료 토큰 추가
-  tokenized = [start_token + tokenizer.encode(sentence) + end_token for sentence in sentences]  
-
-  return tf.keras.preprocessing.sequence.pad_sequences(tokenized, maxlen=max_length(tokenized), padding='post')
-
 
 questions = tokenize_and_padding(questions, start_token, end_token)
 answers = tokenize_and_padding(answers, start_token, end_token)
