@@ -6,6 +6,7 @@ import tensorflow_datasets as tfds
 
 from transformer import *
 from loader import *
+from model import *
 
 
 def custom_loss(max_length):
@@ -66,6 +67,15 @@ def max_length(sentences):
   return max_length
 
 
+def tokenize_and_padding(sentences, start_token, end_token):
+
+  # encode(토큰화 + 정수 인코딩), 시작 토큰과 종료 토큰 추가
+  tokenized = [start_token + tokenizer.encode(sentence) + end_token for sentence in sentences]  
+
+  return tf.keras.preprocessing.sequence.pad_sequences(tokenized, maxlen=max_length(tokenized), padding='post')
+
+
+
 questions, answers = load_dataset('data.csv')
 
 tokenizer = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(questions + answers, target_vocab_size=2**13)
@@ -78,19 +88,8 @@ start_token = [tokenizer.vocab_size]
 end_token = [tokenizer.vocab_size + 1]
 vocab_size = tokenizer.vocab_size + 2 #for adding start token and end token
 
-
-def tokenize_and_padding(sentences, start_token, end_token):
-
-  # encode(토큰화 + 정수 인코딩), 시작 토큰과 종료 토큰 추가
-  tokenized = [start_token + tokenizer.encode(sentence) + end_token for sentence in sentences]
-
-  max_length = max_length(tokenized)
-  
-  return tf.keras.preprocessing.sequence.pad_sequences(tokenized, maxlen=max_length, padding='post')
-
-
 questions = tokenize_and_padding(questions, start_token, end_token)
-questions = tokenize_and_padding(answers, start_token, end_token)
+answers = tokenize_and_padding(answers, start_token, end_token)
 output_max_length = answers.shape[-1]
 
 print('questions.shape:', questions.shape)
@@ -105,14 +104,8 @@ dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
 tf.keras.backend.clear_session()
 
-d_model = 256
-
-optimizer = tf.keras.optimizers.Adam(custom_schedule(d_model), beta_1=0.9, beta_2=0.98, epsilon=1e-9)
-
-model = transformer(vocab_size=vocab_size, num_layers=2, dff=512, d_model=d_model, num_heads=8, dropout=0.1)
-model.compile(optimizer=optimizer, loss=custom_loss(output_max_length), metrics=[custom_accuracy(output_max_length)])
+model = create_model(vocab_size=vocab_size, num_layers=2, dff=512, d_model=256, num_heads=8, output_max_length=output_max_length)
 model.fit(dataset, epochs=50)
-
 
 def evaluate(sentence, start_token, end_token, output_max_length):
 

@@ -67,89 +67,17 @@ def max_length(sentences):
 
 
 def tokenize_and_padding(sentences, start_token, end_token):
-
-  # encode(토큰화 + 정수 인코딩), 시작 토큰과 종료 토큰 추가
-  tokenized = [start_token + tokenizer.encode(sentence) + end_token for sentence in sentences]  
+  
+  tokenized = [start_token + tokenizer.encode(sentence) + end_token for sentence in sentences]
 
   return tf.keras.preprocessing.sequence.pad_sequences(tokenized, maxlen=max_length(tokenized), padding='post')
 
 
-
-questions, answers = load_dataset('data.csv')
-
-tokenizer = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(questions + answers, target_vocab_size=2**13)
-
-tokenized_string = tokenizer.encode(questions[20])
-original_string = tokenizer.decode(tokenized_string)
-print(tokenized_string, ' - ', original_string)
-
-start_token = [tokenizer.vocab_size]
-end_token = [tokenizer.vocab_size + 1]
-vocab_size = tokenizer.vocab_size + 2 #for adding start token and end token
-
-questions = tokenize_and_padding(questions, start_token, end_token)
-answers = tokenize_and_padding(answers, start_token, end_token)
-output_max_length = answers.shape[-1]
-
-print('questions.shape:', questions.shape)
-print('answers.shape :', answers.shape)
-print('vocab size:', vocab_size)
-
-dataset = tf.data.Dataset.from_tensor_slices(({'enc_inputs': questions,'dec_inputs': answers[:, :-1]}, {'outputs': answers[:, 1:]}))
-dataset = dataset.cache()
-dataset = dataset.shuffle(20000)
-dataset = dataset.batch(64)
-dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
-
-tf.keras.backend.clear_session()
-
-d_model = 256
-
-optimizer = tf.keras.optimizers.Adam(custom_schedule(d_model), beta_1=0.9, beta_2=0.98, epsilon=1e-9)
-
-model = transformer(vocab_size=vocab_size, num_layers=2, dff=512, d_model=d_model, num_heads=8, dropout=0.1)
-model.compile(optimizer=optimizer, loss=custom_loss(output_max_length), metrics=[custom_accuracy(output_max_length)])
-model.fit(dataset, epochs=50)
-
-
-def evaluate(sentence, start_token, end_token, output_max_length):
-
-  sentence = preprocess(sentence)
-
-  enc_input = tf.expand_dims(start_token + tokenizer.encode(sentence) + end_token, axis=0)
-
-  dec_input = tf.expand_dims(start_token, 0)
-
-  for i in range(output_max_length):
-
-    predictions = model(inputs=[enc_input, dec_input], training=False)
-    predictions = predictions[:, -1:, :]
-    predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
-    
-    if tf.equal(predicted_id, end_token[0]):
-      break
-    
-    dec_input = tf.concat([dec_input, predicted_id], axis=-1)
-
-  return tf.squeeze(dec_input, axis=0)
-
-
-def predict(sentence, start_token, end_token, output_max_length):
-
-  prediction = evaluate(sentence, start_token, end_token, output_max_length)
-
-  predicted_sentence = tokenizer.decode([i for i in prediction if i < tokenizer.vocab_size])  
-
-  return predicted_sentence
-
-
-
-
-test_questions = ['영화 볼래?', '고민이 있어', '너무 화가나', '게임하고싶은데 할래?', '나 너 좋아하는 것 같아', '딥 러닝 자연어 처리를 잘 하고 싶어']
-
-for test_question in test_questions:
-
-  test_answer = predict(test_question, start_token, end_token , output_max_length)
+def create_model(vocab_size, num_layers, dff, d_model, num_heads, output_max_length):
   
-  print(test_question, ' --> ', test_answer)
+  optimizer = tf.keras.optimizers.Adam(custom_schedule(d_model), beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
+  model = transformer(vocab_size=vocab_size, num_layers=num_layers, dff=dff, d_model=d_model, num_heads=num_heads, dropout=0.1)
+  model.compile(optimizer=optimizer, loss=custom_loss(output_max_length), metrics=[custom_accuracy(output_max_length)])
+
+  return model
