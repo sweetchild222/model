@@ -82,13 +82,15 @@ vocab_size = tokenizer.vocab_size + 2 #for adding start token and end token
 def tokenize_and_padding(sentences, start_token, end_token):
 
   # encode(토큰화 + 정수 인코딩), 시작 토큰과 종료 토큰 추가
-  tokenized = [start_token + tokenizer.encode(sentence) + end_token for sentence in sentences]  
+  tokenized = [start_token + tokenizer.encode(sentence) + end_token for sentence in sentences]
 
-  return tf.keras.preprocessing.sequence.pad_sequences(tokenized, maxlen=max_length(tokenized), padding='post')
+  max_length = max_length(tokenized)
+  
+  return tf.keras.preprocessing.sequence.pad_sequences(tokenized, maxlen=max_length, padding='post')
 
 
 questions = tokenize_and_padding(questions, start_token, end_token)
-answers = tokenize_and_padding(answers, start_token, end_token)
+questions = tokenize_and_padding(answers, start_token, end_token)
 output_max_length = answers.shape[-1]
 
 print('questions.shape:', questions.shape)
