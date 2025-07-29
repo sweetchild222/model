@@ -16,7 +16,7 @@ def decoder(vocab_size, num_layers, dff, d_model, num_heads, dropout, name='deco
     embeddings = PositionalEncoding(vocab_size, d_model)(embeddings)
     outputs = tf.keras.layers.Dropout(rate=dropout)(embeddings)
 
-    #stack decorder
+    # Stack decorder
     for i in range(num_layers):
         outputs = decoder_layer(dff=dff, d_model=d_model, num_heads=num_heads, dropout=dropout, name='decoder_layer_{}'.format(i))(
                     inputs=[outputs, enc_outputs, look_ahead_mask, padding_mask])
@@ -34,12 +34,12 @@ def decoder_layer(dff, d_model, num_heads, dropout, name="decoder_layer"):
   
     attention1 = MultiHeadAttention(d_model, num_heads, name="attention_1")(inputs={'query': inputs, 'key': inputs, 'value': inputs, 'mask': look_ahead_mask})
 
-    #Residual Connection + Normalization
+    # Residual Connection + Normalization
     attention1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attention1 + inputs)
 
     attention2 = MultiHeadAttention(d_model, num_heads, name="attention_2")(inputs={'query': attention1, 'key': enc_outputs, 'value': enc_outputs, 'mask': padding_mask})
 
-    # Dropout + Residual Connection
+    # Dropout + Residual Connection, Normalization
     attention2 = tf.keras.layers.Dropout(rate=dropout)(attention2)
     attention2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attention2 + attention1)
 

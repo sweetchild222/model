@@ -48,25 +48,25 @@ class MultiHeadAttention(tf.keras.layers.Layer):
       key = self.split_heads(key, batch_size)
       value = self.split_heads(value, batch_size)
 
-      #(batch_size, num_heads, query sequence, d_model/num_heads)
+      # (batch_size, num_heads, query sequence, d_model/num_heads)
       scaled_attention, _ = self.scaled_dot_product_attention(query, key, value, mask)
 
-      #(batch_size, query sequence, num_heads, d_model/num_heads)  
+      # (batch_size, query sequence, num_heads, d_model/num_heads)  
       scaled_attention = tf.transpose(scaled_attention, perm=[0, 2, 1, 3])
     
-      #(batch_size, query sequence, d_model)
+      # (batch_size, query sequence, d_model)
       concat_attention = tf.reshape(scaled_attention, (batch_size, -1, self.d_model))
 
-      #(batch_size, query의 sequence, d_model)
+      # (batch_size, query의 sequence, d_model)
       return self.dense(concat_attention)
     
 
     def scaled_dot_product_attention(self, query, key, value, mask):
 
-      #q: (batch_size, num_heads, query sequence, d_model/num_heads)
-      #k: (batch_size, num_heads, key sequence, d_model/num_heads)
-      #v: (batch_size, num_heads, value sequence, d_model/num_heads)
-      #padding_mask : (batch_size, 1, 1, key sequence)
+      # q: (batch_size, num_heads, query sequence, d_model/num_heads)
+      # k: (batch_size, num_heads, key sequence, d_model/num_heads)
+      # v: (batch_size, num_heads, value sequence, d_model/num_heads)
+      # padding_mask : (batch_size, 1, 1, key sequence)
 
       matmul_qk = tf.matmul(query, key, transpose_b=True)
 
@@ -76,10 +76,10 @@ class MultiHeadAttention(tf.keras.layers.Layer):
       if mask is not None:
         logits += (mask * -1e9)
 
-      #(batch_size, num_heads, query sequence, key sequence)
+      # (batch_size, num_heads, query sequence, key sequence)
       attention_weights = tf.nn.softmax(logits, axis=-1)
 
-      #(batch_size, num_heads, query sequence, d_model/num_heads)
+      # (batch_size, num_heads, query sequence, d_model/num_heads)
       output = tf.matmul(attention_weights, value)
 
       return output, attention_weights

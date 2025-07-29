@@ -18,7 +18,7 @@ def encoder_layer(dff, d_model, num_heads, dropout, name="encoder_layer"):
     outputs = tf.keras.layers.Dense(units=dff, activation='relu')(attention)
     outputs = tf.keras.layers.Dense(units=d_model)(outputs)
 
-    #drop out + residual learning
+    # Drop out + residual learning
     outputs = tf.keras.layers.Dropout(rate=dropout)(outputs)
     outputs = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attention + outputs)
 
@@ -36,7 +36,7 @@ def encoder(vocab_size, num_layers, dff, d_model, num_heads, dropout, name="enco
     embeddings = PositionalEncoding(vocab_size, d_model)(embeddings)
     outputs = tf.keras.layers.Dropout(rate=dropout)(embeddings)
 
-    #stack encorder
+    # Stack encorder
     for i in range(num_layers):
         outputs = encoder_layer(dff=dff, d_model=d_model, num_heads=num_heads, dropout=dropout, name="encoder_layer_{}".format(i))([outputs, padding_mask])
 
