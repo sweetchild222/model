@@ -10,7 +10,7 @@ from loader import *
 
 def custom_loss(max_length):
 
-  def loss_function(y_true, y_pred):
+  def loss(y_true, y_pred):
 
     y_true = tf.reshape(y_true, shape=(-1, max_length - 1))
 
@@ -21,7 +21,7 @@ def custom_loss(max_length):
 
     return tf.reduce_mean(loss)
   
-  return loss_function
+  return loss
 
 
 class custom_schedule(tf.keras.optimizers.schedules.LearningRateSchedule):
@@ -40,18 +40,35 @@ class custom_schedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 
-def accuracy(y_true, y_pred):
-  
-  # (batch_size, max_length - 1)
-  y_true = tf.reshape(y_true, shape=(-1, max_length - 1))
 
-  return tf.keras.metrics.sparse_categorical_accuracy(y_true, y_pred)
+def custom_accuracy(max_length):
+
+  def accuracy(y_true, y_pred):
+  
+    # (batch_size, max_length - 1)
+    y_true = tf.reshape(y_true, shape=(-1, max_length - 1))
+
+    return tf.keras.metrics.sparse_categorical_accuracy(y_true, y_pred)
+  
+  return accuracy
+
+
+def max_length_calc(sentences):
+
+  max_length = 0
+  
+  for sentence in sentences:
+
+    length = len(tokenizer.encode(sentence))
+
+    if(length > max_length):
+      max_length = length
+
+  return max_length
+
 
 
 questions, answers = create_dataset('data.csv')
-
-
-
 
 max_length = 40
 print(questions[:5])
@@ -87,17 +104,26 @@ def tokenize_and_padding(inputs, outputs, start_token, end_token):
   for (sentence1, sentence2) in zip(inputs, outputs):
     # encode(토큰화 + 정수 인코딩), 시작 토큰과 종료 토큰 추가
     sentence1 = start_token + tokenizer.encode(sentence1) + end_token
-    sentence2 = start_token + tokenizer.encode(sentence2) + end_token
+    sentence2 = start_token + tokenizer.encode(sentence2) + end_token  
 
     tokenized_inputs.append(sentence1)
     tokenized_outputs.append(sentence2)
+
+  input_max_length = max_length_calc(tokenized_inputs)
+  output_max_length = max_length_calc(tokenized_outputs)
   
+  print(input_max_length, output_max_length)
+
+  exit()
+
   tokenized_inputs = tf.keras.preprocessing.sequence.pad_sequences(tokenized_inputs, maxlen=max_length, padding='post')
   tokenized_outputs = tf.keras.preprocessing.sequence.pad_sequences(tokenized_outputs, maxlen=max_length, padding='post')
   
   return tokenized_inputs, tokenized_outputs
 
 questions, answers = tokenize_and_padding(questions, answers, START_TOKEN, END_TOKEN)
+
+
 
 print('질문 데이터의 크기(shape) :', questions.shape)
 print('답변 데이터의 크기(shape) :', answers.shape)
@@ -116,10 +142,10 @@ dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 tf.keras.backend.clear_session()
 
 d_model = 256
-optimizer = tf.keras.optimizers.Adam(CustomSchedule(d_model), beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+optimizer = tf.keras.optimizers.Adam(custom_schedule(d_model), beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
 model = transformer(vocab_size=VOCAB_SIZE, num_layers=2, dff=512, d_model=d_model, num_heads=8, dropout=0.1)
-model.compile(optimizer=optimizer, loss=CustomLoss(max_length), metrics=[accuracy])
+model.compile(optimizer=optimizer, loss=custom_loss(max_length), metrics=[custom_accuracy(max_length)])
 model.fit(dataset, epochs=50)
 
 
