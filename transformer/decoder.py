@@ -18,13 +18,13 @@ def decoder(vocab_size, num_layers, dff, d_model, num_heads, dropout, name='deco
 
     # Stack decorder
     for i in range(num_layers):
-        outputs = decoder_layer(dff=dff, d_model=d_model, num_heads=num_heads, dropout=dropout, name='decoder_layer_{}'.format(i))(
+        outputs = decoder_layer(dff, d_model, num_heads, dropout, 'decoder_layer_{}'.format(i))(
                     inputs=[outputs, enc_outputs, look_ahead_mask, padding_mask])
 
     return tf.keras.Model(inputs=[inputs, enc_outputs, look_ahead_mask, padding_mask], outputs=outputs, name=name)
 
 
-def decoder_layer(dff, d_model, num_heads, dropout, name="decoder_layer"):
+def decoder_layer(dff, d_model, num_heads, dropout, name):
   
     inputs = tf.keras.Input(shape=(None, d_model), name="inputs")
     enc_outputs = tf.keras.Input(shape=(None, d_model), name="encoder_outputs")

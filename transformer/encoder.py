@@ -3,7 +3,7 @@ from positional_encoding import PositionalEncoding
 from multihead_attention import MultiHeadAttention
 
 
-def encoder_layer(dff, d_model, num_heads, dropout, name="encoder_layer"):
+def encoder_layer(dff, d_model, num_heads, dropout, name):
   
     inputs = tf.keras.Input(shape=(None, d_model), name="inputs")  
     padding_mask = tf.keras.Input(shape=(1, 1, None), name="padding_mask")
@@ -37,6 +37,6 @@ def encoder(vocab_size, num_layers, dff, d_model, num_heads, dropout, name="enco
 
     # Stack encorder
     for i in range(num_layers):
-        outputs = encoder_layer(dff=dff, d_model=d_model, num_heads=num_heads, dropout=dropout, name="encoder_layer_{}".format(i))([outputs, padding_mask])
+        outputs = encoder_layer(dff, d_model, num_heads, dropout, "encoder_layer_{}".format(i))([outputs, padding_mask])
 
     return tf.keras.Model(inputs=[inputs, padding_mask], outputs=outputs, name=name)
