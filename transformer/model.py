@@ -40,7 +40,6 @@ class custom_schedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
 
-
 def custom_accuracy(max_length):
 
   def accuracy(y_true, y_pred):
@@ -53,13 +52,13 @@ def custom_accuracy(max_length):
   return accuracy
 
 
-def max_length_calc(sentences):
+def max_length(sentences):
 
   max_length = 0
   
   for sentence in sentences:
 
-    length = len(tokenizer.encode(sentence))
+    length = len(sentence)
 
     if(length > max_length):
       max_length = length
@@ -67,33 +66,17 @@ def max_length_calc(sentences):
   return max_length
 
 
-
-questions, answers = create_dataset('data.csv')
-
-max_length = 40
-print(questions[:5])
-print(answers[:5])
+questions, answers = load_dataset('data.csv')
 
 tokenizer = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(questions + answers, target_vocab_size=2**13)
 
-START_TOKEN = [tokenizer.vocab_size]
-END_TOKEN = [tokenizer.vocab_size + 1]
-VOCAB_SIZE = tokenizer.vocab_size + 2 #for adding start token and end token
-
-# 서브워드텍스트인코더 토크나이저의 .encode()를 사용하여 텍스트 시퀀스를 정수 시퀀스로 변환.
-print('Tokenized sample question: {}'.format(tokenizer.encode(questions[20])))
-
-sample_string = questions[20]
-
-tokenized_string = tokenizer.encode(sample_string)
-print ('정수 인코딩 후의 문장 {}'.format(tokenized_string))
-
+tokenized_string = tokenizer.encode(questions[20])
 original_string = tokenizer.decode(tokenized_string)
-print ('기존 문장: {}'.format(original_string))
+print(tokenized_string, ' - ', original_string)
 
-
-for ts in tokenized_string:
-  print ('{} ----> {}'.format(ts, tokenizer.decode([ts])))
+start_token = [tokenizer.vocab_size]
+end_token = [tokenizer.vocab_size + 1]
+vocab_size = tokenizer.vocab_size + 2 #for adding start token and end token
 
 
 def tokenize_and_padding(inputs, outputs, start_token, end_token):
@@ -109,25 +92,21 @@ def tokenize_and_padding(inputs, outputs, start_token, end_token):
     tokenized_inputs.append(sentence1)
     tokenized_outputs.append(sentence2)
 
-  input_max_length = max_length_calc(tokenized_inputs)
-  output_max_length = max_length_calc(tokenized_outputs)
-  
-  print(input_max_length, output_max_length)
+  input_max_length = max_length(tokenized_inputs)
+  output_max_length = max_length(tokenized_outputs)
 
-  exit()
-
-  tokenized_inputs = tf.keras.preprocessing.sequence.pad_sequences(tokenized_inputs, maxlen=max_length, padding='post')
-  tokenized_outputs = tf.keras.preprocessing.sequence.pad_sequences(tokenized_outputs, maxlen=max_length, padding='post')
+  tokenized_inputs = tf.keras.preprocessing.sequence.pad_sequences(tokenized_inputs, maxlen=input_max_length, padding='post')
+  tokenized_outputs = tf.keras.preprocessing.sequence.pad_sequences(tokenized_outputs, maxlen=output_max_length, padding='post')
   
   return tokenized_inputs, tokenized_outputs
 
-questions, answers = tokenize_and_padding(questions, answers, START_TOKEN, END_TOKEN)
+questions, answers = tokenize_and_padding(questions, answers, start_token, end_token)
 
+output_max_length = answers.shape[-1]
 
-
-print('질문 데이터의 크기(shape) :', questions.shape)
-print('답변 데이터의 크기(shape) :', answers.shape)
-print('단어 집합의 크기(Vocab size): {}'.format(VOCAB_SIZE))
+print('questions.shape:', questions.shape)
+print('answers.shape :', answers.shape)
+print('vocab size:', vocab_size)
 
 
 # 텐서플로우 dataset을 이용하여 셔플(shuffle)을 수행하되, 배치 크기로 데이터를 묶는다.
@@ -142,54 +121,52 @@ dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 tf.keras.backend.clear_session()
 
 d_model = 256
+
 optimizer = tf.keras.optimizers.Adam(custom_schedule(d_model), beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
-model = transformer(vocab_size=VOCAB_SIZE, num_layers=2, dff=512, d_model=d_model, num_heads=8, dropout=0.1)
-model.compile(optimizer=optimizer, loss=custom_loss(max_length), metrics=[custom_accuracy(max_length)])
+model = transformer(vocab_size=vocab_size, num_layers=2, dff=512, d_model=d_model, num_heads=8, dropout=0.1)
+model.compile(optimizer=optimizer, loss=custom_loss(output_max_length), metrics=[custom_accuracy(output_max_length)])
 model.fit(dataset, epochs=50)
 
 
-def evaluate(sentence, start_token, end_token):
+def evaluate(sentence, start_token, end_token, output_max_length):
 
   sentence = preprocess(sentence)
 
-  sentence = tf.expand_dims(start_token + tokenizer.encode(sentence) + end_token, axis=0)
+  enc_input = tf.expand_dims(start_token + tokenizer.encode(sentence) + end_token, axis=0)
 
-  output = tf.expand_dims(start_token, 0)
+  dec_input = tf.expand_dims(start_token, 0)
 
-  for i in range(max_length):
-    
-    predictions = model(inputs=[sentence, output], training=False)
+  for i in range(output_max_length):
 
-    # 현재(마지막) 시점의 예측 단어를 받아온다.
+    predictions = model(inputs=[enc_input, dec_input], training=False)
     predictions = predictions[:, -1:, :]
     predicted_id = tf.cast(tf.argmax(predictions, axis=-1), tf.int32)
-
-    # 만약 마지막 시점의 예측 단어가 종료 토큰이라면 예측을 중단
+    
     if tf.equal(predicted_id, end_token[0]):
       break
+    
+    dec_input = tf.concat([dec_input, predicted_id], axis=-1)
 
-    # 마지막 시점의 예측 단어를 출력에 연결한다.
-    # 이는 for문을 통해서 디코더의 입력으로 사용될 예정이다.
-    output = tf.concat([output, predicted_id], axis=-1)
-
-  return tf.squeeze(output, axis=0)
+  return tf.squeeze(dec_input, axis=0)
 
 
-def predict(sentence, start_token, end_token):
+def predict(sentence, start_token, end_token, output_max_length):
 
-  prediction = evaluate(sentence, start_token, end_token)
+  prediction = evaluate(sentence, start_token, end_token, output_max_length)
 
   predicted_sentence = tokenizer.decode([i for i in prediction if i < tokenizer.vocab_size])  
 
   return predicted_sentence
 
 
+
+
 test_questions = ['영화 볼래?', '고민이 있어', '너무 화가나', '게임하고싶은데 할래?', '나 너 좋아하는 것 같아', '딥 러닝 자연어 처리를 잘 하고 싶어']
 
 for test_question in test_questions:
 
-    test_answer = predict(test_question, START_TOKEN, END_TOKEN)
-
-    print(test_question, ' --> ', test_answer)
+  test_answer = predict(test_question, start_token, end_token , output_max_length)
+  
+  print(test_question, ' --> ', test_answer)
 

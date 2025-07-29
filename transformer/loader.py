@@ -9,7 +9,7 @@ def preprocess(sentence):
   return sentence.strip()
 
 
-def create_dataset(path):
+def load_dataset(path):
 
   train_data = pd.read_csv(path)
 
