@@ -65,9 +65,11 @@ class custom_schedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     super(custom_schedule, self).__init__()
     
     self.d_model = tf.cast(d_model, tf.float32)
-    self.warmup_steps = warmup_steps
+    self.warmup_steps = tf.cast(warmup_steps, tf.float32)
 
   def __call__(self, step):
+
+    step = tf.cast(step, tf.float32)
 
     arg1 = tf.math.rsqrt(step)
     arg2 = step * (self.warmup_steps**-1.5)
@@ -89,7 +91,7 @@ def custom_accuracy(max_length):
 
 def create_model(vocab_size, num_layers, dff, d_model, num_heads, output_max_length):
   
-  optimizer = tf.keras.optimizers.Adam(custom_schedule(d_model), beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+  optimizer = tf.keras.optimizers.Adam(learning_rate=custom_schedule(d_model), beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
   model = transformer(vocab_size=vocab_size, num_layers=num_layers, dff=dff, d_model=d_model, num_heads=num_heads, dropout=0.1)
   model.compile(optimizer=optimizer, loss=custom_loss(output_max_length), metrics=[custom_accuracy(output_max_length)])

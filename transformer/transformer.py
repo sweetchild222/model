@@ -44,6 +44,8 @@ print('questions.shape:', questions.shape)
 print('answers.shape :', answers.shape)
 print('vocab size:', vocab_size)
 
+# tf.keras.backend.clear_session()
+
 model = create_model(vocab_size=vocab_size, num_layers=2, dff=512, d_model=256, num_heads=8, output_max_length=output_max_length)
 model.fit(create_dataset(questions, answers, 20000, 64), epochs=50)
 

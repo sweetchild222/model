@@ -5,7 +5,7 @@ from multihead_attention import MultiHeadAttention
 
 def encoder_layer(dff, d_model, num_heads, dropout, name):
   
-    inputs = tf.keras.Input(shape=(None, d_model), name="inputs")  
+    inputs = tf.keras.Input(shape=(None, d_model), name="inputs")
     padding_mask = tf.keras.Input(shape=(1, 1, None), name="padding_mask")
 
     attention = MultiHeadAttention(d_model, num_heads, name="attention")({
@@ -33,6 +33,7 @@ def encoder(vocab_size, num_layers, dff, d_model, num_heads, dropout, name="enco
     embeddings = tf.keras.layers.Embedding(vocab_size, d_model)(inputs)
     embeddings *= tf.math.sqrt(tf.cast(d_model, tf.float32))
     embeddings = PositionalEncoding(vocab_size, d_model)(embeddings)
+
     outputs = tf.keras.layers.Dropout(rate=dropout)(embeddings)
 
     # Stack encorder

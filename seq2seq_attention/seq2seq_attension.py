@@ -52,7 +52,9 @@ dataset = tf.data.Dataset.from_tensor_slices((input_tensor, target_tensor)).shuf
 dataset = dataset.batch(batch_size, drop_remainder=True)
 
 vocab_inp_size = len(inp_lang.word_index) + 1
+
 encoder = Encoder(vocab_inp_size, embedding_dim, units, batch_size)
+
 
 #attention_layer = Bahdanau(units)
 #attention_layer = Luong()
@@ -70,6 +72,7 @@ def model_tensor_shape():
 
   sample_hidden = encoder.initialize_hidden_state()
   sample_output, sample_hidden = encoder(example_input_batch, sample_hidden)
+
   print ('Encoder output shape: (batch size, sequence length, units) {}'.format(sample_output.shape))
   print ('Encoder Hidden state shape: (batch size, units) {}'.format(sample_hidden.shape))
 
