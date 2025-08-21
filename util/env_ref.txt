@@ -1,0 +1,13 @@
+https://21june.tistory.com/2
+https://en.wikipedia.org/wiki/CUDA#GPUs_supported
+https://www.tensorflow.org/install/source?hl=ko#tested_build_configurations
+https://developer.nvidia.com/rdp/cudnn-archive
+https://developer.nvidia.com/cuda-toolkit-archive
+
+https://pytorch.org/get-started/previous-versions/
+
+
+텐서플로우-2.14.0   	3.9-3.11	클랭 16.0.0	바젤 6.1.0	8.7	11.8
+텐서플로우-2.19.0		3.9-3.12	클랭 18.1.8	바젤 6.5.0	9.3	12.5
+텐서플로우-2.17.0		3.9-3.12	클랭 17.0.6	바젤 6.5.0	8.9	12.3
+텐서플로우-2.12.0		3.8-3.11	GCC 9.3.1	바젤 5.3.0	8.6	11.8
