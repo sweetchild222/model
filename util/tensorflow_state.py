@@ -6,9 +6,4 @@ def get_available_devices():
     return [x.name for x in local_device_protos]
 
 print(get_available_devices())
-
-
-
-print(tf.__version__)
-
-
+print('tf ver: ' + tf.__version__)
