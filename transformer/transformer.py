@@ -1,6 +1,7 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+#tensorflow ver: 2.12.0
 import tensorflow as tf
 import tensorflow_datasets as tfds
 

@@ -2,6 +2,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 from loader import *
+#tensorflow ver: 2.12.0
 import tensorflow as tf
 
 from encoder import Encoder

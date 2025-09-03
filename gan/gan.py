@@ -4,6 +4,7 @@ import numpy as np
 from discriminator import Discriminator
 from generator import Generator
 
+#torch version : 2.0.0+cu118
 import torch
 from torchvision import *
 from torch.autograd import Variable
