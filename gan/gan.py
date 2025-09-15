@@ -1,5 +1,4 @@
 import os
-import numpy as np
 
 from discriminator import Discriminator
 from generator import Generator
@@ -7,7 +6,6 @@ from generator import Generator
 #torch version : 2.0.0+cu118
 import torch
 from torchvision import *
-from torch.autograd import Variable
 
 
 def load(img_size):
@@ -26,33 +24,28 @@ img_size=28
 latent_dim=100 
 input_shape = (channel, img_size, img_size)
 
-adversarial_loss = torch.nn.BCELoss()
-generator = Generator(input_shape, latent_dim)
-discriminator = Discriminator(input_shape)
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-if torch.cuda.is_available():
-    generator.cuda()
-    discriminator.cuda()
-    adversarial_loss.cuda()
+adversarial_loss = torch.nn.BCELoss().to(device)
+generator = Generator(input_shape, latent_dim).to(device)
+discriminator = Discriminator(input_shape).to(device)
 
 dataloader = load(img_size)
 optimizer_G = torch.optim.Adam(generator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
-tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
 
 epochs = 50
 
 for epoch in range(epochs):
     for i, (imgs, _) in enumerate(dataloader):
 
-        valid = Variable(tensor(imgs.size(0), 1).fill_(1.0), requires_grad=False)
-        invalid = Variable(tensor(imgs.size(0), 1).fill_(0.0), requires_grad=False)
-                
-        real = Variable(imgs.type(tensor))
+        valid = torch.ones(size=(imgs.size(0), 1), dtype=torch.float32, requires_grad=False).to(device)
+        invalid = torch.zeros(size=(imgs.size(0), 1), dtype=torch.float32, requires_grad=False).to(device)
+        real = imgs.to(device)
 
         optimizer_G.zero_grad()
 
-        noise = Variable(tensor(np.random.normal(0, 1, (imgs.shape[0], latent_dim))))
+        noise = torch.normal(mean=0.0, std=1.0, size=(imgs.shape[0], latent_dim), dtype=torch.float32).to(device)
 
         fake = generator(noise)
 
