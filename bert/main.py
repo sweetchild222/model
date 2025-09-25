@@ -1,3 +1,4 @@
+#torch version : 2.0.0+cu118
 import torch
 from torch.utils.data import DataLoader
 
