@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 
 from model.bert import BERT
 from bert_dataset import BERTDataset
-from model.embedding.bert_embedding import BERTEmbedding
+
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
