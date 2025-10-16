@@ -85,8 +85,10 @@ def main():
 
         next_type_correct = 0
         next_type_total = 0
+        next_type_loss_total = 0	    
         mask_correct = 0
         mask_total = 0
+        mask_loss_total = 0	    
 
         for i, (word_input, segment_input, next_type_target, mask_target) in enumerate(data_loader):
 
@@ -99,12 +101,14 @@ def main():
 
             backward(next_type_loss, mask_loss)
 
+            mask_loss_total += mask_loss
             mask_filter = (mask_target != bert_dataset.pad_index)
             mask_predic = mask_predic.argmax(dim=-1)
             mask_correct += mask_predic[mask_filter].eq(mask_target[mask_filter]).sum().item()
             mask_total += torch.sum(mask_filter == True).item()
 
-            next_type_predic = next_type_predic.argmax(dim=-1) 
+            next_type_loss_total += next_type_loss
+            next_type_predic = next_type_predic.argmax(dim=-1)
             next_type_correct += next_type_predic.eq(next_type_target).sum().item()
             next_type_total += next_type_predic.shape[0]
 
@@ -113,9 +117,9 @@ def main():
 
         print("epoch="  + str(epoch + 1) + "/" + str(epochs) + ", "
             "next_type_correct=" + str(next_type_correct) + "/" + str(next_type_total) + "(" + str(next_type_correct * 100 // next_type_total) + "%), "
-            "next_type_loss=" + str(next_type_loss.item() / (i + 1)) + ", "
+            "next_type_loss=" + str(next_type_loss_total.item() / (i + 1)) + ", "
             "mask_correct=" + str(mask_correct) + "/" + str(mask_total) + "(" + str(mask_correct * 100 // mask_total) + "%), "
-            "mask_loss=" + str(mask_loss.item() / (i + 1)))
+            "mask_loss=" + str(mask_loss_total.item() / (i + 1)))
 
 
 main()
