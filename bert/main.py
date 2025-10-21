@@ -30,7 +30,7 @@ adam = torch.optim.AdamW(bert.parameters(), lr=1e-4, betas=(0.9, 0.999), weight_
 def forward(x, segment, next_type_target, mask_target):
 
     mask = (x != bert_dataset.pad_index).unsqueeze(1).repeat(1, x.size(1), 1).unsqueeze(1)
-
+    
     next_type_predic, mask_predic = bert.forward(x, segment, mask)
     
     next_type_loss = next_type_loss_layer.forward(next_type_predic, next_type_target)
