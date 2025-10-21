@@ -10,7 +10,7 @@ class ScaleDotAttention(nn.Module):
         scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(query.size(-1))
         
         if mask is not None:            
-            scores += scores.masked_fill(mask.logical_not(), float("-inf")) #-1e9 == -1,000,000,000
+            scores += scores.masked_fill(mask.logical_not(), float("-inf"))
 
         attention_weigth = nn.Softmax(dim=-1).forward(scores)
 
