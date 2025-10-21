@@ -18,7 +18,7 @@ class BERT(nn.Module):
 
 
     def forward(self, x, segment, mask=None):
-                
+
         x = self.embedding.forward(x, segment)
         
         for transformer_encorder in self.transformer_encorders:

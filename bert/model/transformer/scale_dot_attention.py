@@ -15,4 +15,4 @@ class ScaleDotAttention(nn.Module):
 
         attention_weigth = nn.Softmax(dim=-1).forward(scores)
 
-        return torch.matmul(attention_weigth, value), attention_weigth
+        return torch.matmul(attention_weigth, value)

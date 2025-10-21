@@ -13,8 +13,6 @@ class MultiHeadAttention(nn.Module):
         self.depth = d_model // head_count
         self.head_count = head_count
 
-        self.linears = nn.ModuleList([nn.Linear(d_model, d_model)] * 3)
-
         self.query_liner = nn.Linear(d_model, d_model)
         self.key_liner = nn.Linear(d_model, d_model)
         self.value_liner = nn.Linear(d_model, d_model)
@@ -44,7 +42,7 @@ class MultiHeadAttention(nn.Module):
         key = self.split_heads(key)
         value = self.split_heads(value)
         
-        x, attention_weigth = self.scale_dot_attention(query, key, value, mask=mask)
+        x = self.scale_dot_attention(query, key, value, mask=mask)
         
         x = x.transpose(1, 2).contiguous().view(batch_size, -1, self.head_count * self.depth)
 

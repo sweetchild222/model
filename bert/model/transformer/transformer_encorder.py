@@ -10,7 +10,7 @@ class TransformerEncorder(nn.Module):
         super().__init__()
         
         self.attention = MultiHeadAttention(head_count=attention_head_count, d_model=hidden)
-        self.attention_residual_norm = nn.LayerNorm(hidden)        
+        self.attention_residual_norm = nn.LayerNorm(hidden)
         self.dropout = nn.Dropout(p=dropout)
         self.feed_forward = PositionwiseFeedForward(d_model=hidden, d_ff=feed_forward_hidden, dropout=dropout)
         self.feed_forward_residual_norm = nn.LayerNorm(hidden)
