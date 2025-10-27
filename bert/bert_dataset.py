@@ -16,26 +16,43 @@ class BERTDataset(Dataset):
         self.eos_index = 3
         self.mask_index = 4
 
-        self.special_words = {self.pad_index: "<P>", self.unk_index:"<U>", self.sos_index:"<S>", self.eos_index: "<E>", self.mask_index: "<M>"}        
-
-        self.lines = self.load(path)
+        self.special_words = {self.pad_index: "<P>", self.unk_index:"<U>", self.sos_index:"<S>", self.eos_index: "<E>", self.mask_index: "<M>"}
+        
+        self.lines = self.Punctuation(self.load(path))
 
         self.index2word, self.word2index = self.make_word_index(list(self.special_words.values()), self.lines)
 
 
+    def Punctuation(self, lines):
+
+        new_lines = []
+
+        for line in lines:
+            
+            re_line = []
+            
+            # 12시 땡! -> 12시 땡 !
+            re_line.append(re.sub(r"([?.!,])", r" \1", line[0].strip()))
+            re_line.append(re.sub(r"([?.!,])", r" \1", line[1].strip()))
+            re_line.append(line[2].strip())
+
+            new_lines.append(re_line)
+
+        return new_lines
+    
+
     def make_word_index(self, special_words, lines):
 
         word_set = set()
-        
+
         for line in lines:
-            for l in line:
-                l = re.sub(r"([?.!,])", r" \1 ", l) # 12시 땡! -> 12시 땡 !
-                
-                words = l.strip().split()
+            for l in line[0:2]:
+            
+                words = l.split()
 
                 for word in words:
-                    word_set.add(word)                    
-        
+                    word_set.add(word)
+
         index2word = special_words + list(word_set)
         word2index = {token: index for index, token in enumerate(index2word)}
 
@@ -45,7 +62,6 @@ class BERTDataset(Dataset):
     def load(self, path):
         
         with open(path, "r", encoding='utf-8') as file:
-
             return [line[:-1].split(",") for line in file]
         
     def sentence(self, index_list):
@@ -153,7 +169,7 @@ class BERTDataset(Dataset):
         indices = {'ordinary':0 , 'negative': 1, 'positive':2, 'mismatch':3 }
 
         return indices[label]
-                
+
         
     def random_sentence(self, index):
 
