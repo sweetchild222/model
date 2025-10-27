@@ -18,12 +18,12 @@ class BERTDataset(Dataset):
 
         self.special_words = {self.pad_index: "<P>", self.unk_index:"<U>", self.sos_index:"<S>", self.eos_index: "<E>", self.mask_index: "<M>"}
         
-        self.lines = self.Punctuation(self.load(path))
+        self.lines = self.punctuation_to_word(self.load(path))
 
         self.index2word, self.word2index = self.make_word_index(list(self.special_words.values()), self.lines)
 
 
-    def Punctuation(self, lines):
+    def punctuation_to_word(self, lines):
 
         new_lines = []
 
