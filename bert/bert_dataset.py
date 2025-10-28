@@ -18,37 +18,42 @@ class BERTDataset(Dataset):
 
         self.special_words = {self.pad_index: "<P>", self.unk_index:"<U>", self.sos_index:"<S>", self.eos_index: "<E>", self.mask_index: "<M>"}
         
-        self.lines = self.punctuation_to_word(self.load(path))
+        self.texts = self.trim_lines(self.load(path))
 
-        self.index2word, self.word2index = self.make_word_index(list(self.special_words.values()), self.lines)
+        self.index2word, self.word2index = self.make_word_index(list(self.special_words.values()), self.texts)
 
 
-    def punctuation_to_word(self, lines):
+    def detach_punctuation(self, text):
+            
+        # 12시 땡! -> 12시 땡 !
+        return re.sub(r"([?.!,])", r" \1", text.strip())
 
-        new_lines = []
+
+    def trim_lines(self, lines):
+
+        new_texts = []
 
         for line in lines:
             
-            re_line = []
-            
-            # 12시 땡! -> 12시 땡 !
-            re_line.append(re.sub(r"([?.!,])", r" \1", line[0].strip()))
-            re_line.append(re.sub(r"([?.!,])", r" \1", line[1].strip()))
-            re_line.append(line[2].strip())
+            texts = []
+                        
+            texts.append(self.detach_punctuation(line[0].strip()))
+            texts.append(self.detach_punctuation(line[1].strip()))
+            texts.append(line[2].strip())
 
-            new_lines.append(re_line)
+            new_texts.append(texts)
 
-        return new_lines
+        return new_texts
     
 
-    def make_word_index(self, special_words, lines):
+    def make_word_index(self, special_words, texts):
 
         word_set = set()
 
-        for line in lines:
-            for l in line[0:2]:
-            
-                words = l.split()
+        for text in texts:
+            for t in text[0:2]:
+                
+                words = t.split()
 
                 for word in words:
                     word_set.add(word)
@@ -63,6 +68,7 @@ class BERTDataset(Dataset):
         
         with open(path, "r", encoding='utf-8') as file:
             return [line[:-1].split(",") for line in file]
+        
         
     def sentence(self, index_list):
 
@@ -91,7 +97,7 @@ class BERTDataset(Dataset):
 
     def __len__(self):
 
-        return len(self.lines)
+        return len(self.texts)
 
 
     def __getitem__(self, index):
@@ -173,22 +179,22 @@ class BERTDataset(Dataset):
         
     def random_sentence(self, index):
 
-        line = self.lines[index]
+        text = self.texts[index]
         
         r = random.random()
         
-        if r < 0.75:            
-            return line[0], line[1], int(line[2])
+        if r < 0.75:
+            return text[0], text[1], int(text[2])
         else:
-            return line[0], self.get_random_line(index), self.next_type_index('mismatch')
+            return text[0], self.get_random_text(index), self.next_type_index('mismatch')
 
 
-    def get_random_line(self, exclude_index):
+    def get_random_text(self, exclude_index):
         
         find_index = -1
 
         while True:
-            find_index = random.randrange(len(self.lines))
+            find_index = random.randrange(len(self.texts))
 
             if exclude_index != find_index:
-                return self.lines[find_index][1]
+                return self.texts[find_index][1]
